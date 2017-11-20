@@ -127,8 +127,8 @@ class RzdRequest:
 
     @staticmethod
     def get_instances_from_range(
-            src_сode: str,
-            dst_сode: str,
+            src_code: str,
+            dst_code: str,
             time_range: TimeRange) -> Iterable['RzdRequest']:
         """
         Generate list or requests for each day in time range
@@ -143,23 +143,23 @@ class RzdRequest:
         if time_range.start.date() == time_range.end.date():
             time = "{}-{}".format(time_range.start.hour, end_hour)
             result = [
-                RzdRequest(src_сode, dst_сode, dt.date(), time)
+                RzdRequest(src_code, dst_code, dt.date(), time)
             ]
         else:
             time = "{}-{}".format(time_range.start.hour, '24')
             result = [
-                RzdRequest(src_сode, dst_сode, dt.date(), time)
+                RzdRequest(src_code, dst_code, dt.date(), time)
             ]
             dt += datetime.timedelta(days=1)
             while dt.date() < time_range.end.date():
                 time = "{}-{}".format('0', '24')
                 result.append(
-                    RzdRequest(src_сode, dst_сode, dt.date(), time)
+                    RzdRequest(src_code, dst_code, dt.date(), time)
                 )
                 dt += datetime.timedelta(days=1)
             time = "{}-{}".format('0', end_hour)
             result.append(
-                RzdRequest(src_сode, dst_сode, dt.date(), time)
+                RzdRequest(src_code, dst_code, dt.date(), time)
             )
         return result
 
@@ -340,11 +340,11 @@ class RzdFetcher:
             departure_range,
         )
 
-    async def trains_by_code(self, src_сode: str, dst_сode: str,
+    async def trains_by_code(self, src_code: str, dst_code: str,
                              departure_range: TimeRange):
         rzd_requests = RzdRequest.get_instances_from_range(
-            src_сode,
-            dst_сode,
+            src_code,
+            dst_code,
             departure_range,
         )
 
@@ -374,8 +374,8 @@ class RzdFetcher:
                 logging.warning('Captcha request')
                 RzdRequest.session_counter += 100
                 rzd_requests = RzdRequest.get_instances_from_range(
-                    src_сode,
-                    dst_сode,
+                    src_code,
+                    dst_code,
                     departure_range,
                 )
                 await asyncio.sleep(120)
