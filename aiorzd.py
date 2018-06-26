@@ -175,6 +175,12 @@ class RzdFetcher:
         logging.debug(
             " (%s.%s) : %s" % (self.__class__.__name__, __func__(), 'start'))
 
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        await self.close()
+
     async def close(self):
         await self.session.close()
 
