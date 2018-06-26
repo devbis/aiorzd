@@ -4,7 +4,7 @@ from distutils.core import setup
 
 setup(
     name='aiorzd',
-    version='0.2',
+    version='0.3',
     description='Async client for rzd.ru',
     author='Ivan Belokobylskiy',
     author_email='belokobylskij@gmail.com',
