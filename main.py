@@ -6,6 +6,7 @@ import asyncio
 import datetime
 from aiorzd import RzdFetcher, TimeRange
 
+
 async def main():
     tomorrow = datetime.date.today() + datetime.timedelta(days=1)
     after_tomorrow = datetime.date.today() + datetime.timedelta(days=2)
@@ -29,6 +30,7 @@ async def main():
             trains,
     ):
         print(train)
+    await fetcher.close()
 
 
 if __name__ == "__main__":

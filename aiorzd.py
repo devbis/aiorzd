@@ -175,8 +175,8 @@ class RzdFetcher:
         logging.debug(
             " (%s.%s) : %s" % (self.__class__.__name__, __func__(), 'start'))
 
-    def __del__(self):
-        self.session.close()
+    async def close(self):
+        await self.session.close()
 
     @staticmethod
     def filter_trains(trains: Iterable[Train], types: Iterable[str]) \
