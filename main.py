@@ -10,17 +10,17 @@ from aiorzd import RzdFetcher, TimeRange
 async def main():
     tomorrow = datetime.date.today() + datetime.timedelta(days=1)
     after_tomorrow = datetime.date.today() + datetime.timedelta(days=2)
-    fetcher = RzdFetcher()
-    trains = await fetcher.trains(
-        'МОСКВА',
-        'САНКТ-ПЕТЕРБУРГ',
-        TimeRange(
-            datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,
-                              20, 0),
-            datetime.datetime(after_tomorrow.year, after_tomorrow.month,
-                              after_tomorrow.day, 4, 0),
+    async with RzdFetcher() as fetcher:
+        trains = await fetcher.trains(
+            'МОСКВА',
+            'САНКТ-ПЕТЕРБУРГ',
+            TimeRange(
+                datetime.datetime(tomorrow.year, tomorrow.month, tomorrow.day,
+                                  20, 0),
+                datetime.datetime(after_tomorrow.year, after_tomorrow.month,
+                                  after_tomorrow.day, 4, 0),
+            )
         )
-    )
     for train in trains:
         print(train)
 
@@ -30,8 +30,6 @@ async def main():
             trains,
     ):
         print(train)
-    await fetcher.close()
-
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
