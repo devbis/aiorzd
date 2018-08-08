@@ -8,7 +8,7 @@ import aiorzd
 @pytest.mark.asyncio
 async def test_live():
     tomorrow = datetime.date.today() + datetime.timedelta(days=1)
-    after_tomorrow = datetime.date.today() + datetime.timedelta(days=2)
+    after_tomorrow = datetime.date.today() + datetime.timedelta(days=3)
     async with aiorzd.RzdFetcher() as fetcher:
         train_list = await fetcher.trains(
             'МОСКВА',
@@ -28,5 +28,5 @@ async def test_live():
         for t in train_list
         for s in t.seats.keys()
     }
-    assert {'Купе', 'Люкс', 'Мягкий', 'Общий', 'Плац'} - \
-        available_seats == set()
+    assert set() == \
+        {'Купе', 'Люкс', 'Мягкий', 'Общий', 'Плац'} - available_seats
