@@ -229,7 +229,7 @@ class RzdFetcher:
         for _ in range(10):
             try:
                 response = await self._do_autocomplete_request(name)
-            except UpstreamError as e:
+            except (UpstreamError, aiohttp.ServerDisconnectedError) as e:
                 error = e
                 await asyncio.sleep(0.5)
             else:
