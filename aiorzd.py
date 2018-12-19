@@ -214,7 +214,7 @@ class RzdFetcher:
         }
         async with self.session.get(url, params=params) as r:
             try:
-                response = await r.json(loads=_loads)
+                response = await r.json(loads=_loads, content_type=None)
             except json.JSONDecodeError:
                 raise UpstreamError("Decode error: {}".format(
                     await r.text()
