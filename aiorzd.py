@@ -399,4 +399,13 @@ class RzdFetcher:
             if r.result is not None:
                 trains.extend(r.result)
 
+        # extra filtering to exclude trains not in range due to range by hours
+        trains = [
+            train
+            for train in trains
+            if departure_range.start <=
+            train.departure_time <=
+            departure_range.end
+        ]
+
         return trains
