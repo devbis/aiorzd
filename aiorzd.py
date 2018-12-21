@@ -71,7 +71,8 @@ class Place:
     types = ['Плацкартный', 'Купе', 'Общий', 'Сидячий', 'Люкс', 'Мягкий']
 
     # seat, platzkart, coupe, lux, soft = range(5)
-    def __init__(self, typ: str=None, quantity: int=0, price: float=None):
+    def __init__(self, typ: str = None, quantity: int = 0,
+                 price: float = None):
         self.type = typ
         self.quantity = quantity
         self.price = price
@@ -81,9 +82,9 @@ class Place:
 
 
 class Train:
-    def __init__(self, number: int=0, title: str='',
-                 departure_time: datetime.datetime=None,
-                 arrival_time: datetime.datetime=None, elreg: bool=False):
+    def __init__(self, number: int = 0, title: str = '',
+                 departure_time: datetime.datetime = None,
+                 arrival_time: datetime.datetime = None, elreg: bool = False):
         self.number = number
         self.title = title
         self.departure_time = departure_time
@@ -105,7 +106,7 @@ class RzdRequest:
     session_counter = 1
 
     def __init__(self, src_code: str, dst_code: str, date: datetime.date,
-                 time_range: str=None):
+                 time_range: str = None):
         self.request_id = None
         self.session = self.__class__.session_counter
         self.src_code = src_code
@@ -143,23 +144,23 @@ class RzdRequest:
         if time_range.start.date() == time_range.end.date():
             time = "{}-{}".format(time_range.start.hour, end_hour)
             result = [
-                RzdRequest(src_code, dst_code, dt.date(), time)
+                RzdRequest(src_code, dst_code, dt.date(), time),
             ]
         else:
             time = "{}-{}".format(time_range.start.hour, '24')
             result = [
-                RzdRequest(src_code, dst_code, dt.date(), time)
+                RzdRequest(src_code, dst_code, dt.date(), time),
             ]
             dt += datetime.timedelta(days=1)
             while dt.date() < time_range.end.date():
                 time = "{}-{}".format('0', '24')
                 result.append(
-                    RzdRequest(src_code, dst_code, dt.date(), time)
+                    RzdRequest(src_code, dst_code, dt.date(), time),
                 )
                 dt += datetime.timedelta(days=1)
             time = "{}-{}".format('0', end_hour)
             result.append(
-                RzdRequest(src_code, dst_code, dt.date(), time)
+                RzdRequest(src_code, dst_code, dt.date(), time),
             )
         return result
 
@@ -217,7 +218,7 @@ class RzdFetcher:
                 response = await r.json(loads=_loads, content_type=None)
             except json.JSONDecodeError:
                 raise UpstreamError("Decode error: {}".format(
-                    await r.text()
+                    await r.text(),
                 ))
             else:
                 if not response:
@@ -283,7 +284,7 @@ class RzdFetcher:
                 self.__class__.__name__,
                 __func__(),
                 'search ...',
-            )
+            ),
         )
         post_params = {
             'checkSeats': '1',
@@ -292,7 +293,7 @@ class RzdFetcher:
             'dt0': rzd_req.date.strftime('%d.%m.%Y'),
             'code0': str(rzd_req.src_code),
             'code1': str(rzd_req.dst_code),
-            'ti0': rzd_req.time
+            'ti0': rzd_req.time,
         }
         if rzd_req.request_id is not None:
             post_params['rid'] = rzd_req.request_id
@@ -306,7 +307,10 @@ class RzdFetcher:
         result = None
         try:
             for _ in range(10):
-                async with self.session.post(trains_url, data=post_params) as r:
+                async with self.session.post(
+                    trains_url,
+                    data=post_params,
+                ) as r:
                     result = await r.text()
                     try:
                         response = _loads(result)
@@ -315,13 +319,11 @@ class RzdFetcher:
                     else:
                         break
             else:
-                raise UpstreamError("Decode error: {}".format(
-                    result
-                ))
+                raise UpstreamError("Decode error: {}".format(result))
 
         except ValueError:
             raise WrongQuery(
-                'Error answer. Wrong date or complex query.\n%s' % result
+                'Error answer. Wrong date or complex query.\n%s' % result,
             )
 
         if response.get('error'):
@@ -358,8 +360,8 @@ class RzdFetcher:
             " (%s.%s) : %s" % (
                 self.__class__.__name__,
                 __func__(),
-                'fetching trains info...'
-            )
+                'fetching trains info...',
+            ),
         )
 
         fetching = True
@@ -391,7 +393,7 @@ class RzdFetcher:
                 self.__class__.__name__,
                 __func__(),
                 'parsing ...',
-            )
+            ),
         )
 
         trains = []
@@ -403,9 +405,11 @@ class RzdFetcher:
         trains = [
             train
             for train in trains
-            if departure_range.start <=
-            train.departure_time <=
-            departure_range.end
+            if (
+                departure_range.start <=
+                train.departure_time <=
+                departure_range.end
+            )
         ]
 
         return trains
