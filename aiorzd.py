@@ -84,13 +84,14 @@ class Place:
 class Train:
     def __init__(self, number: int = 0, title: str = '',
                  departure_time: datetime.datetime = None,
-                 arrival_time: datetime.datetime = None, elreg: bool = False):
+                 arrival_time: datetime.datetime = None, elreg: bool = False, content: dict | None = None):
         self.number = number
         self.title = title
         self.departure_time = departure_time
         self.arrival_time = arrival_time
         self.elreg = elreg
         self.seats = OrderedDict()
+        self.content = content
 
     def __str__(self):
         seats = ", ".join([str(s) for s in self.seats.values()])
@@ -105,18 +106,25 @@ class Train:
 class RzdRequest:
     session_counter = 1
 
-    def __init__(self, src_code: str, dst_code: str, date: datetime.date,
-                 time_range: str = None):
+    def __init__(self, *args, **kwargs):
         self.request_id = None
         self.session = self.__class__.session_counter
-        self.src_code = src_code
-        self.dst_code = dst_code
-        self.date = date
-        self.time = ('0-24' if time_range is None else time_range)
         self.result = None
         self.counter = 0
 
         self.__class__.session_counter += 1
+
+
+class RzdTrainsRequest(RzdRequest):
+    session_counter = 1
+
+    def __init__(self, src_code: str, dst_code: str, date: datetime.date,
+                 time_range: str = None):
+        super().__init__()
+        self.src_code = src_code
+        self.dst_code = dst_code
+        self.date = date
+        self.time = ('0-24' if time_range is None else time_range)
 
     def __repr__(self):
         return "{}->{} {} {}".format(
@@ -130,7 +138,7 @@ class RzdRequest:
     def get_instances_from_range(
             src_code: str,
             dst_code: str,
-            time_range: TimeRange) -> Iterable['RzdRequest']:
+            time_range: TimeRange) -> Iterable['RzdTrainsRequest']:
         """
         Generate list or requests for each day in time range
         """
@@ -144,28 +152,49 @@ class RzdRequest:
         if time_range.start.date() == time_range.end.date():
             time = "{}-{}".format(time_range.start.hour, end_hour)
             result = [
-                RzdRequest(src_code, dst_code, dt.date(), time),
+                RzdTrainsRequest(src_code, dst_code, dt.date(), time),
             ]
         else:
             time = "{}-{}".format(time_range.start.hour, '24')
             result = [
-                RzdRequest(src_code, dst_code, dt.date(), time),
+                RzdTrainsRequest(src_code, dst_code, dt.date(), time),
             ]
             dt += datetime.timedelta(days=1)
             while dt.date() < time_range.end.date():
                 time = "{}-{}".format('0', '24')
                 result.append(
-                    RzdRequest(src_code, dst_code, dt.date(), time),
+                    RzdTrainsRequest(src_code, dst_code, dt.date(), time),
                 )
                 dt += datetime.timedelta(days=1)
             time = "{}-{}".format('0', end_hour)
             result.append(
-                RzdRequest(src_code, dst_code, dt.date(), time),
+                RzdTrainsRequest(src_code, dst_code, dt.date(), time),
             )
         return result
 
 
+class RzdCarriagesRequest(RzdRequest):
+    def __init__(self, src_code: str, dst_code: str, dt: datetime.date,
+                 train_number: str):
+        super().__init__()
+        self.src_code = src_code
+        self.dst_code = dst_code
+        self.datetime = dt
+        self.train_number = train_number
+
+    def __repr__(self):
+        return "{}->{} {} {}".format(
+            self.src_code,
+            self.dst_code,
+            self.train_number,
+            self.datetime,
+        )
+
+
 class RzdFetcher:
+    TRAIN_LAYER_ID = 5827
+    CARRIAGES_LAYER_ID = 5764
+
     site_url = 'https://pass.rzd.ru'
     request_url = '/timetable/public/ru'
     suggest_url = '/suggester'
@@ -264,6 +293,7 @@ class RzdFetcher:
             train.arrival_time = datetime.datetime.strptime(
                 t['time1'] + ' ' + t['date1'], "%H:%M %d.%m.%Y")
             train.elreg = t['elReg']
+            train.content = t
 
             for s in t['cars']:
                 price = float(s['tariff'])
@@ -277,7 +307,7 @@ class RzdFetcher:
 
         return trains
 
-    async def send_query(self, rzd_req: RzdRequest):
+    async def send_trains_query(self, rzd_req: RzdTrainsRequest):
         # send search form
         logging.debug(
             " (%s.%s) : %s" % (
@@ -301,7 +331,7 @@ class RzdFetcher:
         trains_url = '%s%s%s' % (
             self.site_url,
             self.request_url,
-            '?layer_id=5827',
+            '?layer_id={}'.format(self.TRAIN_LAYER_ID),
         )
 
         result = None
@@ -340,6 +370,68 @@ class RzdFetcher:
             rzd_req.request_id = response['RID']
         return None
 
+    async def send_carriages_query(self, rzd_req: RzdCarriagesRequest):
+        # send search form
+        logging.debug(
+            " (%s.%s) : %s" % (
+                self.__class__.__name__,
+                __func__(),
+                'search ...',
+            ),
+        )
+        post_params = {
+            'dir': '0',
+            'code0': str(rzd_req.src_code),
+            'code1': str(rzd_req.dst_code),
+            'dt0': rzd_req.datetime.strftime('%d.%m.%Y'),
+            'time0': rzd_req.datetime.strftime('%H:%M'),
+            'tnum0': rzd_req.train_number,
+        }
+        if rzd_req.request_id is not None:
+            post_params['rid'] = rzd_req.request_id
+
+        carriages_url = '%s%s%s' % (
+            self.site_url,
+            self.request_url,
+            '?layer_id={}'.format(self.CARRIAGES_LAYER_ID),
+        )
+
+        result = None
+        try:
+            for _ in range(10):
+                async with self.session.post(
+                    carriages_url,
+                    data=post_params,
+                ) as r:
+                    result = await r.text()
+                    try:
+                        response = _loads(result)
+                    except json.JSONDecodeError:
+                        await asyncio.sleep(0.5)
+                    else:
+                        break
+            else:
+                raise UpstreamError("Decode error: {}".format(result))
+
+        except ValueError:
+            raise WrongQuery(
+                'Error answer. Wrong date or complex query.\n%s' % result,
+            )
+
+        if response.get('error'):
+            # TODO Parse error messages
+            raise CaptchaRequired(response.get('error'))
+
+        lst = response.get('lst', [])
+        if lst and lst[0]['msgList'] and \
+                lst[0]['msgList'][0].get('errType') == 'ERROR':
+            raise UpstreamError(lst[0]['msgList'][0]['message'])
+        elif response['result'] == 'OK':
+            return response
+        elif response['result'] == 'RID':
+            rzd_req.request_id = response['RID']
+        return None
+
     async def trains(self, src: str, dst: str, departure_range: TimeRange) \
             -> Iterable[Train]:
         return await self.trains_by_code(
@@ -350,7 +442,7 @@ class RzdFetcher:
 
     async def trains_by_code(self, src_code: str, dst_code: str,
                              departure_range: TimeRange):
-        rzd_requests = RzdRequest.get_instances_from_range(
+        rzd_requests = RzdTrainsRequest.get_instances_from_range(
             src_code,
             dst_code,
             departure_range,
@@ -372,7 +464,7 @@ class RzdFetcher:
             try:
                 for r in rzd_requests:
                     if r.result is None:
-                        r.result = await self.send_query(r)
+                        r.result = await self.send_trains_query(r)
                         r.counter += 1
                     if r.result is None and r.counter < self.wait_tries:
                         fetching = True
@@ -380,8 +472,8 @@ class RzdFetcher:
                 fetching = True
                 # rebuild requests
                 logging.warning('Captcha request')
-                RzdRequest.session_counter += 100
-                rzd_requests = RzdRequest.get_instances_from_range(
+                RzdTrainsRequest.session_counter += 100
+                rzd_requests = RzdTrainsRequest.get_instances_from_range(
                     src_code,
                     dst_code,
                     departure_range,
@@ -413,3 +505,35 @@ class RzdFetcher:
         ]
 
         return trains
+
+    async def get_train_carriages(self, src_code: str, dst_code: str, dt: datetime.datetime, train_number: str):
+        fetching = True
+
+        r = RzdCarriagesRequest(src_code, dst_code, dt, train_number)
+        while fetching:
+            await asyncio.sleep(1)
+
+            fetching = False
+            try:
+                if r.result is None:
+                    r.result = await self.send_carriages_query(r)
+                    r.counter += 1
+                if r.result is None and r.counter < self.wait_tries:
+                    fetching = True
+            except CaptchaRequired:
+                fetching = True
+                # rebuild requests
+                logging.warning('Captcha request')
+                RzdTrainsRequest.session_counter += 100
+                r = RzdCarriagesRequest(src_code, dst_code, dt, train_number)
+                await asyncio.sleep(120)
+
+        logging.debug(
+            " (%s.%s) : %s" % (
+                self.__class__.__name__,
+                __func__(),
+                'parsing ...',
+            ),
+        )
+
+        return r.result
